@@ -38,7 +38,10 @@
 #include "GenParticleCollection.hh"
 #include "Jet.hh"
 #include "JetCollection.hh"
+#include "JetTree.hh"
 #include "JetPlots.hh"
+#include "JetEnergyResolutionPlots.hh"
+#include "JetAngularResolutionPlots.hh"
 
 bool debug = false;
 //bool debug = true;
@@ -63,11 +66,11 @@ void produceJets(Collection& input_particles, JetCollection & jets, const float&
 
 template <class Sequence>
 void convertJets(Sequence seq, vector<PseudoJet> pseudojets, const float& r, JetCollection& jets, const bool doSubstructure = false);
-
 void matchJets(JetCollection& genjets, JetCollection& recojets, float dr);
 void printJets(JetCollection & jets);
 void computePuOffset(RecHitCollection& rechits);
 void sumOverCone(JetCollection& newjets, JetCollection& recojets, RecHitCollection& rechits,float dr);
+void addHitsToJet(JetCollection& recojets, RecHitCollection& rechits,float dr);
 
 //----------------------------------------------------------------------
 int main(int argc, char* argv[]){
@@ -76,22 +79,20 @@ int main(int argc, char* argv[]){
  // Check the number of parameters
   if (argc < 6) {
     // Tell the user how to run the program
-    std::cerr << "Usage: " << argv[0] << " [input.root] " << " [output.root] " <<" [Nevts] [CMS/FCC]" << " [checkJetCone] " << std::endl;
+    std::cerr << "Usage: " << argv[0] << " [input.root] " << " [output.root] " <<" [Nevts] [DeltaR] [maxEta] " << " [checkJetCone] " << std::endl;
     return 1;
   }
 
-  TString runType = argv[4];
-  if(runType != "CMS" && runType != "FCC"){
-     cerr << "Should specifiy CMS or FCC as last argument"<<endl;
-     return 1;
-  }
+  double DeltaR = atof(argv[4]);
+  double maxEta = atof(argv[5]);
    
-  TString doConeCheck = argv[5];
+  TString doConeCheck = argv[6];
   // ---   Tree stuff declarations
   
   TFile *f = new TFile(argv[1]);
-  TTree *t = (TTree*)f->Get("ana/hgc");
 
+  TTree *t = (TTree*)f->Get("events");
+  
   vector<Float_t> *rechit_pt        = 0;
   vector<Float_t> *rechit_eta       = 0;
   vector<Float_t> *rechit_phi       = 0;
@@ -124,7 +125,6 @@ int main(int argc, char* argv[]){
   t->SetBranchAddress("rechit_x", &rechit_x);
   t->SetBranchAddress("rechit_y", &rechit_y);
   t->SetBranchAddress("rechit_z", &rechit_z);
-  if(runType == "CMS")t->SetBranchAddress("rechit_thickness", &rechit_thickness);
   t->SetBranchAddress("rechit_layer", &rechit_layer);
 
   t->SetBranchAddress("cluster_eta",    &cluster_eta);
@@ -149,6 +149,12 @@ int main(int argc, char* argv[]){
   JetPlots gen_plots  = JetPlots("gen", ptvals);
   JetPlots reco_plots = JetPlots("reco", ptvals);
 
+  JetAngularResolutionPlots jet_angular_plots = JetAngularResolutionPlots("angular", ptvals);
+  JetEnergyResolutionPlots jet_energy_plots = JetEnergyResolutionPlots("energy", ptvals);
+
+  // write jets into tree
+  JetTree reco_tree = JetTree();
+
   // calibration 
   RecHitCalibration recHitCalibration;
 
@@ -159,7 +165,7 @@ int main(int argc, char* argv[]){
 
   //read all entries and fill the histograms
   Long64_t nentries = t->GetEntries();
-  Long64_t nmax = stoi(argv[3]);
+  Long64_t nmax = atoi(argv[3]);
   Int_t nrun = TMath::Min(nentries, nmax);
 
   for (Long64_t i=0;i<nrun;i++) {
@@ -174,7 +180,7 @@ int main(int argc, char* argv[]){
     for (unsigned i = 0; i < genpart_size; i++) {
        // initialize genpart
        genpart_p4.SetPtEtaPhiE(genpart_pt->at(i), genpart_eta->at(i), genpart_phi->at(i), genpart_energy->at(i));
-       GenParticle *genpart = genparts.AddGenParticle(genpart_p4, genpart_pdgid->at(i), genpart_status->at(i));
+       genparts.AddGenParticle(genpart_p4, genpart_pdgid->at(i), genpart_status->at(i));
     }
 
     GenParticleCollection clean_genparts;
@@ -189,35 +195,17 @@ int main(int argc, char* argv[]){
     RecHitCollection rechits;
     unsigned rechit_size = rechit_pt->size();
     for (unsigned i = 0; i < rechit_size; i++) {
-    //for (unsigned i = 0; i < 1000; i++) {
-       // initialize rechit
-       rechit_p4.SetPtEtaPhiE(rechit_pt->at(i), rechit_eta->at(i), rechit_phi->at(i), rechit_energy->at(i));
-       rechit_pos.SetXYZT(rechit_x->at(i), rechit_y->at(i), rechit_z->at(i), 0.0);
-       RecHit *rechit = rechits.AddRecHit(rechit_p4, rechit_pos, rechit_layer->at(i));
-       
-       // apply some rechit filtering if this is CMS HGCAL run
-       if(runType == "CMS"){
-          rechit->setThickness(rechit_thickness->at(i));
-       }
+      // initialize rechit
+      rechit_p4.SetPtEtaPhiE(rechit_pt->at(i), rechit_eta->at(i), rechit_phi->at(i), rechit_energy->at(i));
+      rechit_pos.SetXYZT(rechit_x->at(i), rechit_y->at(i), rechit_z->at(i), 0.0);
+      rechits.AddRecHit(rechit_p4, rechit_pos, rechit_layer->at(i));
     }
     
     if(debug) cout<<"rechit size: "<<rechits.size()<<endl;
     RecHitCollection clean_rechits;
-    if(runType == "CMS"){
-       computePuOffset(rechits);
-
-       for (unsigned i = 0; i < rechits.size(); i++) {
-           RecHit *r = rechits.at(i);
-           if (!r->isAboveThreshold(recHitCalibration, 5.0)) continue;
-           if (!r->isAbovePuNoise()) continue;
-           clean_rechits.Add(new RecHit(*r));
-        }
-    }
-    else {
-       for (unsigned i = 0; i < rechits.size(); i++) {
-           RecHit *r = rechits.at(i);
-           clean_rechits.Add(new RecHit(*r));
-       }
+    for (unsigned i = 0; i < rechits.size(); i++) {
+      RecHit *r = rechits.at(i);
+      clean_rechits.Add(new RecHit(*r));
     }
     if(debug) cout<<"clean rechit size: "<<clean_rechits.size()<<endl;
     
@@ -232,7 +220,7 @@ int main(int argc, char* argv[]){
 	// initialize cluster 
 	cluster_p4.SetPtEtaPhiE(cluster_pt->at(i), cluster_eta->at(i), cluster_phi->at(i), cluster_energy->at(i));
 	cluster_pos.SetXYZT(cluster_x->at(i), cluster_y->at(i), cluster_z->at(i), 0.0);
-	Cluster *cluster = clusters.AddCluster(cluster_p4, cluster_pos);
+	clusters.AddCluster(cluster_p4, cluster_pos);
       }
       if(debug) cout<<"cluster size: "<<clusters.size()<<endl;
     }
@@ -250,13 +238,13 @@ int main(int argc, char* argv[]){
     cuts.ptmin  = 2.5;
     cuts.ptmax  = 20000.;
     cuts.absetamin = 0.0;
-    cuts.absetamax = 1.3;
+    cuts.absetamax = maxEta;
     
-    produceJets(clean_genparts, genjets, 0.4, cuts, false, doSubstructure);
+    produceJets(clean_genparts, genjets, DeltaR, cuts, false, doSubstructure);
     if (clean_rechits.size() > 0)
-      produceJets(clean_rechits, recojets, 0.4, cuts, doPuSubtraction, doSubstructure);
+      produceJets(clean_rechits, recojets, DeltaR, cuts, doPuSubtraction, doSubstructure);
     else if (clusters.size() > 0)
-      produceJets(clusters, recojets, 0.4, cuts, doPuSubtraction, doSubstructure);
+      produceJets(clusters, recojets, DeltaR, cuts, doPuSubtraction, doSubstructure);
 
     if (debug) { 
         cout<<" ------  gen jets ------"<<endl;
@@ -265,31 +253,40 @@ int main(int argc, char* argv[]){
         printJets(recojets);
     }
 
+    // if you check the anti-kt altogithm for basicaly summing up the cells within a cone
+    // !!!! NEEDED FOR ANGULAR RESOLUTION 
     if (doConeCheck == "1"){
       cout<<" ------ rechits summed around anti-kt jet axis' ------"<<endl;
 	
       JetCollection newjets;
-      sumOverCone(newjets, recojets, clean_rechits, 0.4);
+      sumOverCone(newjets, recojets, clean_rechits, DeltaR);
     
       // match reco to gen (need this in order to make resolution plots) 
       // matching aroud 0.3 (ATLAS-CONF-2015-037)
       matchJets(genjets, newjets, 0.3);
-
+      addHitsToJet(newjets,clean_rechits, DeltaR);
       if (debug) { 
 	cout<<" ------  jets in cone ------ "<<endl;
 	printJets(newjets);
       }
+      reco_tree.fill(newjets);
       gen_plots.fill(genjets);  
       reco_plots.fill(newjets);
+      jet_energy_plots.fill(newjets);
+      jet_angular_plots.fill(newjets);
     }
-    else {
-      
-      // match reco to gen (need this in order to make resolution plots)                                                                                                               
-      matchJets(genjets, recojets, 0.4);
 
+    // run normally
+    else {
+      // match reco to gen (need this in order to make resolution plots)                                                                                                               
+      matchJets(genjets, recojets, 0.3);
+      addHitsToJet(recojets,clean_rechits, DeltaR);
       // fill plots
+      reco_tree.fill(recojets);
       gen_plots.fill(genjets);
       reco_plots.fill(recojets);
+      jet_energy_plots.fill(recojets);
+      jet_angular_plots.fill(recojets);
     }
   } // end event loop
   
@@ -297,9 +294,12 @@ int main(int argc, char* argv[]){
   TFile outfile(argv[2],"RECREATE");
   
   // store plots in output root tree
+  reco_tree.write();
   gen_plots.write();
   reco_plots.write();
-  
+  jet_energy_plots.write();
+  jet_angular_plots.write();
+
   outfile.Close();
 
   return 0;
@@ -380,7 +380,7 @@ void produceJets(Collection& constituents, JetCollection& jets, const float& r, 
        
        // jet area correction parameters, are used only if doPU = true
        float etamin = 0;
-       float etamax = 2.5;
+       float etamax = cuts.absetamax;
        float spacing = 0.50;
        Selector selector = SelectorAbsRapRange(etamin, etamax);
 
@@ -550,6 +550,7 @@ void sumOverCone(JetCollection& newjets, JetCollection& recojets, RecHitCollecti
    float y;
    float z;
    TLorentzVector p4; // use SetPtEtaPhiM
+
    // sums up all reHits aroud DeltaR=0.4
    for (unsigned j = 0; j < recHits.size() ; j++) { 
      RecHit *hit = recHits.at(j);
@@ -571,4 +572,24 @@ void sumOverCone(JetCollection& newjets, JetCollection& recojets, RecHitCollecti
    Jet newjet(p4);
    newjets.Add(new Jet(newjet));
  }
+}
+
+//------------------------------------------------------------------------------------------------------                                                                                                                                     
+void addHitsToJet(JetCollection& recojets, RecHitCollection& recHits,float dr){
+
+  for (unsigned i = 0; i < recojets.size() ; i++) {
+    Jet *rj = recojets.at(i);
+    
+    std::vector<RecHit*> hits;
+    // sums up all reHits aroud DeltaR=0.4                                                                                                                                                                                        
+    for (unsigned j = 0; j < recHits.size() ; j++) {
+      RecHit *hit = recHits.at(j);
+      float dr_gh = hit->p4().DeltaR(rj->p4());
+      if( dr_gh < dr ){
+	// Add hit to new jet                                                                                                                                                                                                  
+	hits.push_back(hit);
+      }
+    }
+    rj->setHits(hits);
+  }
 }

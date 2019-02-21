@@ -3,6 +3,7 @@
 #include <sstream>
 #include <string.h>
 #include "Jet.hh"
+#include "RecHit.hh"
 
 Jet::Jet(){};
 
@@ -19,6 +20,7 @@ Jet::Jet(Jet& j){
     _tau32 = j._tau32;
     _sdmass = j._sdmass;
     _ref = j._ref;
+    _hits = j._hits;
 }
 
 
@@ -29,6 +31,7 @@ void Jet::setTau21(float tau21){_tau21 = tau21;}
 void Jet::setTau32(float tau32){_tau32 = tau32;}
 
 void Jet::setRef(Jet* jet){_ref = jet;}
+void Jet::setHits(std::vector<RecHit*> hits){_hits = hits;}
 
 void Jet::setSDmass(float sdmass){_sdmass = sdmass;}
 
@@ -49,6 +52,7 @@ float Jet::tau32() {return _tau32;}
 float Jet::massSD() {return _sdmass;}
 
 Jet* Jet::ref() {return _ref;}
+std::vector<RecHit*> Jet::hits() {return _hits;}
 
 void Jet::print(){
    std::string commentStr = "";

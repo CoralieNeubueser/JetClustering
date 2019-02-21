@@ -11,10 +11,11 @@ source /cvmfs/sft.cern.ch/lcg/releases/LCG_88/ROOT/6.08.06/x86_64-slc6-gcc49-opt
 INPUT_FILE=${1}
 OUTPUT_FILE=${2}
 NEVENTS=${3}
-RUNTYPE=${4}
-CHECK=${5}
+DELTAR=${4}
+ETACUT=${5}
+CHECK=${6}
 
 cp /afs/cern.ch/user/c/cneubuse/FCC/JetClustering/analyze .
 
-./analyze ${INPUT_FILE} ${OUTPUT_FILE} ${NEVENTS} ${RUNTYPE} ${CHECK}
+./analyze ${INPUT_FILE} ${OUTPUT_FILE} ${NEVENTS} ${DELTAR} ${ETACUT} ${CHECK}
  

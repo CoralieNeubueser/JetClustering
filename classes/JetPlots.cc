@@ -3,17 +3,17 @@
 JetPlots::JetPlots(const TString name, const vector<float> ptvals){
    
    _name    = name;   
-   _pt      = TH1F(name+"_pt",name+"_pt",5000,0.,10000.);
+   _pt      = TH1F(name+"_pt",name+"_pt",10000,0.,20000.);
    _eta     = TH1F(name+"_eta",name+"_eta",500,-5.0,5.0);
    _phi     = TH1F(name+"_phi",name+"_phi",500,-TMath::Pi(),-TMath::Pi());
-   _mass    = TH1F(name+"_mass",name+"_mass",5000,0.,5000.);
-   _energy  = TH1F(name+"_energy",name+"_energy",5000,0.,10000.);
+   _mass    = TH1F(name+"_mass",name+"_mass",10000,0.,20000.);
+   _energy  = TH1F(name+"_energy",name+"_energy",10000,0.,20000.);
    _tau1    = TH1F(name+"_tau1",name+"_tau1",500,0.,1.0);
    _tau2    = TH1F(name+"_tau2",name+"_tau2",500,0.,1.0);
    _tau3    = TH1F(name+"_tau3",name+"_tau3",500,0.,1.0);
    _tau21   = TH1F(name+"_tau21",name+"_tau21",500,0.,1.0);
    _tau32   = TH1F(name+"_tau32",name+"_tau32",500,0.,1.0);
-   _massSD  = TH1F(name+"_massSD",name+"_massSD",5000,0.,5000.);
+   _massSD  = TH1F(name+"_massSD",name+"_massSD",10000,0.,20000.);
 
 
   //create dictionary for resolution plots
@@ -23,7 +23,7 @@ JetPlots::JetPlots(const TString name, const vector<float> ptvals){
       TString ptbin_str;
       ptbin_str.Form("_%.0f_%.0f",ptmin,ptmax);
       ptbin_str = name + ptbin_str;
-      _ptbins.push_back(make_pair(make_pair(ptmin, ptmax), TH1F(ptbin_str,ptbin_str,500,0.,4.0)));
+      _ptbins.push_back(make_pair(make_pair(ptmin, ptmax), TH1F(ptbin_str,ptbin_str,2000,0.,4.0)));
   }
 
 }
@@ -31,7 +31,7 @@ JetPlots::JetPlots(const TString name, const vector<float> ptvals){
 void JetPlots::fill(JetCollection& coll){
    for (unsigned i = 0; i < coll.size(); i++) {
 
-       // fill first two only for now
+      // fill first two only for now
        if(i > 1) break;
 
        Jet jet = *(coll.at(i));

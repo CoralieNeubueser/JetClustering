@@ -18,7 +18,7 @@ if [ ! -d fjcontrib-${fjcontrib_version} ]; then
 fi
 
 cd fastjet-${fastjet_version}
-./configure --prefix=$prefix --enable-allcxxplugins --enable-all-plugins
+./configure --prefix=$prefix --enable-allcxxplugins
 make -j8
 make install
 cd ../fjcontrib-${fjcontrib_version}

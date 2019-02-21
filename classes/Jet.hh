@@ -2,6 +2,7 @@
 #define JET_H
 
 #include "TLorentzVector.h"
+#include "RecHit.hh"
 
 class Jet{
 
@@ -15,6 +16,7 @@ class Jet{
         float _sdmass;
 
         Jet* _ref = NULL;
+        std::vector<RecHit*> _hits;
 
     public:
         
@@ -31,6 +33,7 @@ class Jet{
         void setSDmass(float sdmass);
 
         void setRef(Jet*);
+        void setHits(std::vector<RecHit*>);
 
         float eta();
         float phi();
@@ -52,7 +55,8 @@ class Jet{
         TLorentzVector p4();
 
         Jet* ref();
-
+        std::vector<RecHit*> hits();
+      
         void print();
 
 };
