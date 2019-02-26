@@ -70,7 +70,8 @@ void matchJets(JetCollection& genjets, JetCollection& recojets, float dr);
 void printJets(JetCollection & jets);
 void computePuOffset(RecHitCollection& rechits);
 void sumOverCone(JetCollection& newjets, JetCollection& recojets, RecHitCollection& rechits,float dr);
-void addHitsToJet(JetCollection& recojets, RecHitCollection& rechits,float dr);
+void addHitsToJet(JetCollection& recojets, RecHitCollection& rechits,float minR,float dr);
+void sumEnergiesAroundJet(JetCollection& recojets, RecHitCollection& rechits,float alpha);
 
 //----------------------------------------------------------------------
 int main(int argc, char* argv[]){
@@ -264,7 +265,7 @@ int main(int argc, char* argv[]){
       // match reco to gen (need this in order to make resolution plots) 
       // matching aroud 0.3 (ATLAS-CONF-2015-037)
       matchJets(genjets, newjets, 0.3);
-      addHitsToJet(newjets,clean_rechits, DeltaR);
+      addHitsToJet(newjets,clean_rechits, 0., DeltaR);
       if (debug) { 
 	cout<<" ------  jets in cone ------ "<<endl;
 	printJets(newjets);
@@ -280,7 +281,8 @@ int main(int argc, char* argv[]){
     else {
       // match reco to gen (need this in order to make resolution plots)                                                                                                               
       matchJets(genjets, recojets, 0.3);
-      addHitsToJet(recojets,clean_rechits, DeltaR);
+      addHitsToJet(recojets,clean_rechits, 0., DeltaR);
+      sumEnergiesAroundJet(recojets,clean_rechits, 0.05);
       // fill plots
       reco_tree.fill(recojets);
       gen_plots.fill(genjets);
@@ -575,21 +577,65 @@ void sumOverCone(JetCollection& newjets, JetCollection& recojets, RecHitCollecti
 }
 
 //------------------------------------------------------------------------------------------------------                                                                                                                                     
-void addHitsToJet(JetCollection& recojets, RecHitCollection& recHits,float dr){
+void addHitsToJet(JetCollection& recojets, RecHitCollection& recHits, float minR, float dr){
+  
+  float maxR = minR + dr;
 
   for (unsigned i = 0; i < recojets.size() ; i++) {
     Jet *rj = recojets.at(i);
     
     std::vector<RecHit*> hits;
-    // sums up all reHits aroud DeltaR=0.4                                                                                                                                                                                        
+    // sums up all reHits aroud DeltaR                          
     for (unsigned j = 0; j < recHits.size() ; j++) {
       RecHit *hit = recHits.at(j);
       float dr_gh = hit->p4().DeltaR(rj->p4());
-      if( dr_gh < dr ){
-	// Add hit to new jet                                                                                                                                                                                                  
+      if( dr_gh > minR && dr_gh < maxR ){
+	// Add hit to new jet
 	hits.push_back(hit);
       }
     }
     rj->setHits(hits);
+  }
+}
+//------------------------------------------------------------------------------------------------------
+ 
+void sumEnergiesAroundJet(JetCollection& recojets, RecHitCollection& recHits, float alpha){
+
+  // Five rings around jet axis with max = 5*alpha
+  // Alpha can effectively be maximal 0.4/5 = 0.08
+  // Use 0.05 as default!
+  int n = 5;
+
+  for (unsigned i = 0; i < recojets.size() ; i++) {
+    Jet *rj = recojets.at(i);
+
+    float energies[n]={0.};
+    // sums up all energies within rings
+    for (unsigned j = 0; j < recHits.size() ; j++) {
+      RecHit *hit = recHits.at(j);
+      float dr_gh = hit->p4().DeltaR(rj->p4());
+      
+      for (unsigned int k=1; k<=n; k++){
+	float min = alpha*(k-1)/n;
+	float max = alpha*k/n;
+
+	if( dr_gh > min && dr_gh < max ){
+	  energies[k-1] += hit->energy();
+	}
+      }
+    }
+
+//    std::cout << "Test ring energy n=1: " << energies[0] << endl;
+//    std::cout << "Test ring energy n=2: " << energies[1] << endl;
+//    std::cout << "Test ring energy n=3: " << energies[2] << endl;
+//    std::cout << "Test ring energy n=4: " << energies[3] << endl;
+//    std::cout << "Test ring energy n=5: " << energies[4] << endl;
+
+    rj->setEf1(energies[0]);
+    rj->setEf2(energies[1]);
+    rj->setEf3(energies[2]);
+    rj->setEf4(energies[3]);
+    rj->setEf5(energies[4]);
+  
   }
 }

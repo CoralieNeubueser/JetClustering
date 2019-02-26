@@ -13,43 +13,75 @@ JetTree::JetTree(){
    events->Branch("tau21",  &_tau21  ); 
    events->Branch("tau32",  &_tau32  ); 
    events->Branch("massSD", &_massSD ); 
+   events->Branch("ef1", &_ef1 );
+   events->Branch("ef2", &_ef2 );
+   events->Branch("ef3", &_ef3 );
+   events->Branch("ef4", &_ef4 );
+   events->Branch("ef5", &_ef5 );
 
+   //events->Branch("jets_massSD", &_jets_massSD ); 
+   //events->Branch("jets_mass",   &_jets_mass );   
+   //events->Branch("jets_pt",     &_jets_pt     ); 
+   
 }
 
 void JetTree::fill(JetCollection& coll){
-   
-  _pt    .clear();
-  _eta   .clear();
-  _phi   .clear();
-  _mass  .clear();
-  _energy.clear();
-  _tau1  .clear();
-  _tau2  .clear();
-  _tau3  .clear();
-  _tau21 .clear();
-  _tau32 .clear();
-  _massSD.clear();
+
+  //_jets_pt    .clear();   
+  //_jets_mass  .clear();   
+  //_jets_massSD.clear();   
+  //
+  //for (unsigned i = 0; i < coll.size(); i++) {
+  //  // fill first two only for now 
+  //  if(i > 1) break;
+  //  Jet jet = *(coll.at(i));
+  //  _jets_pt      .push_back(jet.pt());
+  //  _jets_mass    .push_back(jet.mass());
+  //  _jets_massSD  .push_back(jet.massSD());
+  //}
   
   for (unsigned i = 0; i < coll.size(); i++) {
 
-      // fill first two only for now
-       if(i > 1) break;
+    _pt    =0.;
+    _eta   =0.;
+    _phi   =0.;
+    _mass  =0.;
+    _energy=0.;
+    _tau1  =0.;
+    _tau2  =0.;
+    _tau3  =0.;
+    _tau21 =0.;
+    _tau32 =0.;
+    _massSD=0.;
+    _ef1=0.;
+    _ef2=0.;
+    _ef3=0.;
+    _ef4=0.;
+    _ef5=0.;
 
-       Jet jet = *(coll.at(i));
-       _pt      .push_back(jet.pt());
-       _eta     .push_back(jet.eta());
-       _phi     .push_back(jet.phi());
-       _mass    .push_back(jet.mass());
-       _energy  .push_back(jet.energy());
-       _tau1    .push_back(jet.tau1());
-       _tau2    .push_back(jet.tau2());
-       _tau3    .push_back(jet.tau3());
-       _tau21   .push_back(jet.tau21());
-       _tau32   .push_back(jet.tau32());
-       _massSD  .push_back(jet.massSD());
+    // fill first two only for now
+    if(i > 1) break;
+
+    Jet jet = *(coll.at(i));
+    _pt      = jet.pt();
+    _eta     = jet.eta();
+    _phi     = jet.phi();
+    _mass    = jet.mass();
+    _energy  = jet.energy();
+    _tau1    = jet.tau1();
+    _tau2    = jet.tau2();
+    _tau3    = jet.tau3();
+    _tau21   = jet.tau21();
+    _tau32   = jet.tau32();
+    _massSD  = jet.massSD();
+    _ef1     = jet.ef1();
+    _ef2     = jet.ef2();
+    _ef3     = jet.ef3();
+    _ef4     = jet.ef4();
+    _ef5     = jet.ef5();
+
+    events->Fill();
   }
-  
-  events->Fill();
 }
 
 void JetTree::write(){

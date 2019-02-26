@@ -20,17 +20,22 @@ class JetTree{
 
         TTree* events = new TTree("events", "a Tree with data from a fake Geant3");
 
-        std::vector<double> _pt;
-        std::vector<double> _eta;
-        std::vector<double> _phi;
-        std::vector<double> _mass;
-        std::vector<double> _energy;
-        std::vector<double> _tau1;
-        std::vector<double> _tau2;
-        std::vector<double> _tau3;
-        std::vector<double> _tau21;
-        std::vector<double> _tau32;
-        std::vector<double> _massSD;
+        float _pt;
+        float _eta;
+        float _phi;
+        float _mass;
+        float _energy;
+        float _tau1;
+        float _tau2;
+        float _tau3;
+        float _tau21;
+        float _tau32;
+        float _massSD;
+        float _ef1;
+        float _ef2;
+        float _ef3;
+        float _ef4;
+        float _ef5;
 
     public:
         

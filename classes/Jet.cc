@@ -21,6 +21,12 @@ Jet::Jet(Jet& j){
     _sdmass = j._sdmass;
     _ref = j._ref;
     _hits = j._hits;
+    _ef1 = j._ef1;
+    _ef2 = j._ef2;
+    _ef3 = j._ef3;
+    _ef4 = j._ef4;
+    _ef5 = j._ef5;
+
 }
 
 
@@ -32,6 +38,12 @@ void Jet::setTau32(float tau32){_tau32 = tau32;}
 
 void Jet::setRef(Jet* jet){_ref = jet;}
 void Jet::setHits(std::vector<RecHit*> hits){_hits = hits;}
+
+void Jet::setEf1(float ef1){_ef1 = ef1;}
+void Jet::setEf2(float ef2){_ef2 = ef2;}
+void Jet::setEf3(float ef3){_ef3 = ef3;}
+void Jet::setEf4(float ef4){_ef4 = ef4;}
+void Jet::setEf5(float ef5){_ef5 = ef5;}
 
 void Jet::setSDmass(float sdmass){_sdmass = sdmass;}
 
@@ -50,6 +62,12 @@ float Jet::tau3() {return _tau3;}
 float Jet::tau21() {return _tau21;}
 float Jet::tau32() {return _tau32;}
 float Jet::massSD() {return _sdmass;}
+float Jet::ef1() {return _ef1;}
+float Jet::ef2() {return _ef2;}
+float Jet::ef3() {return _ef3;}
+float Jet::ef4() {return _ef4;}
+float Jet::ef5() {return _ef5;}
+
 
 Jet* Jet::ref() {return _ref;}
 std::vector<RecHit*> Jet::hits() {return _hits;}
