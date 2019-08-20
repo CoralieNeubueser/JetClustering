@@ -18,6 +18,7 @@ class JetCollection{
        
        Jet* AddJet(const TLorentzVector p4);
        void Add(Jet* r);
+       Jet* Find(Jet* r);       
        
        Jet* at(const unsigned int i);       
 

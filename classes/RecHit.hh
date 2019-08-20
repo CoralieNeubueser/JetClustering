@@ -8,7 +8,8 @@ class RecHit{
 
     private:
         float _thickness;
-        float _layer;
+        int _layer;
+        float _energy;
         float _puOffset;
         TLorentzVector _mom;
         TLorentzVector _pos;
@@ -18,6 +19,7 @@ class RecHit{
         
         // constructors
         RecHit(RecHit&);
+        RecHit(TLorentzVector p4, TLorentzVector pos, float energy);
         RecHit(TLorentzVector p4, TLorentzVector pos, int layer);
         RecHit(TLorentzVector p4, TLorentzVector pos, int layer, float thickness);
 

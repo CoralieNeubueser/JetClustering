@@ -31,6 +31,16 @@ Jet* JetCollection::at(const unsigned int i){
     return _jets[i];
 }
 
+Jet* JetCollection::Find(Jet* j){
+  auto it = std::find(_jets.begin(), _jets.end(), j);
+  if (it!=_jets.end())
+    return *it;
+  else{
+    std::cout << "No jet found. " << std::endl;
+    return 0;
+  }
+}
+
 unsigned int JetCollection::size(){
     return _jets.size();
 }

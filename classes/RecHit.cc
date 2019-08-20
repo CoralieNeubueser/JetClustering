@@ -16,6 +16,11 @@ RecHit::RecHit(TLorentzVector p4, TLorentzVector pos, int layer){
    _layer = layer;
 }
 
+RecHit::RecHit(TLorentzVector p4, TLorentzVector pos, float energy){
+  _mom = p4;
+  _pos = pos;
+  _energy = energy;
+}
 
 RecHit::RecHit(TLorentzVector p4, TLorentzVector pos, int layer, float thickness){
    _mom = p4;

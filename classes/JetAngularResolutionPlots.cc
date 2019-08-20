@@ -34,14 +34,14 @@ void JetAngularResolutionPlots::fill(JetCollection& col){
      double phiW = 0.;
      double energy =0.;
 
-     for(const auto& hit : jet.hits()){
-       
-       etaW += hit->eta()*hit->energy();
-       thetaW += (2. * atan( exp(-hit->eta()))) *hit->energy();
-       phiW += hit->phi()*hit->energy(); 
-       energy += hit->energy();
-     
-     }
+//     for(const auto& hit : jet.hits()){
+//       
+//       etaW += hit->eta()*hit->energy();
+//       thetaW += (2. * atan( exp(-hit->eta()))) *hit->energy();
+//       phiW += hit->phi()*hit->energy(); 
+//       energy += hit->energy();
+//     
+//     }
     
      // fill resolution plots                                                                                                                                                                                                              
      for(vector<pair<pair<float,float>, TH1F>>::iterator it = _etabins.begin(); it != _etabins.end(); it++) {

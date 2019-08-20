@@ -17,10 +17,10 @@ RecHitCollection::~RecHitCollection(){
          delete _rechits[i];
 }
 
-RecHit* RecHitCollection::AddRecHit(const TLorentzVector p4, const TLorentzVector pos, int layer){
-    RecHit* r = new RecHit(p4, pos, layer);
-    _rechits.push_back(r);
-    return r;
+RecHit* RecHitCollection::AddRecHit(const TLorentzVector p4, const TLorentzVector pos, float energy){
+  RecHit* r = new RecHit(p4, pos, energy);
+  _rechits.push_back(r);
+  return r;
 }
 
 void RecHitCollection::Add(RecHit* r){

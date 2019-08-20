@@ -16,7 +16,7 @@ class RecHitCollection{
 
        ~RecHitCollection();
        
-       RecHit* AddRecHit(const TLorentzVector p4, const TLorentzVector pos, int layer);
+       RecHit* AddRecHit(const TLorentzVector p4, const TLorentzVector pos, float energy);
        void Add(RecHit* r);
        
        RecHit* at(const unsigned int i);       
