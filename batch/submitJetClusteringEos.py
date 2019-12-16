@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import os, sys, subprocess, time, commands
 from optparse import OptionParser
+from string import digits
 
 #__________________________________________________________
 def getCommandOutput(command):
@@ -35,6 +36,8 @@ def SubmitToCondor(cmd,nbtrials):
         if i==nbtrials-1:
             print "failed sumbmitting after: "+str(nbtrials)+" trials, will exit"
             return 0,0
+
+global basename
 
 def main():
     parser = OptionParser()
@@ -79,8 +82,20 @@ def main():
 		      dest="allPts", action="store_true", 
 		      default=False)
 
+    parser.add_option("-o","--onlyCalo", help="calo Rechits only for jet building",
+                      dest="caloOnly", action="store_true",
+                      default=False)
+
     parser.add_option("-t","--topoCluster", help="topoCluster for jet building",
                       dest="topoCluster", action="store_true",
+                      default=False)
+
+    parser.add_option("--track", help="use smeared genParticles for jet building",
+                      dest="track", action="store_true",
+                      default=False)
+
+    parser.add_option("--pfa", help="use smeared genParticles for jet building and match with jets from calo clusters.",
+                      dest="PFA", action="store_true",
                       default=False)
 
     parser.add_option("--pileupNoise", help="added pileup noise before jet building",
@@ -107,6 +122,14 @@ def main():
                       dest="proc",
                       default="ljets")
 
+    parser.add_option("--beta", help="beta",
+                      dest="beta",
+                      default=0.)
+
+    parser.add_option("--alpha", help="alpha",
+                      dest="alpha",
+                      default=0.05)
+
     (options, args) = parser.parse_args()
     input_dir       = options.input
     algo            = options.algorithm
@@ -127,10 +150,27 @@ def main():
     if options.topoCluster:
         algo = algo + '_cluster'
 
+    if options.track:
+        algo = algo + '_track'
+        check = "2"
+
+    elif options.PFA:
+        algo = algo + '_pfa'
+        check = "3"
+
     if options.pileupNoise:
         algo = algo + '_pileupNoise_mu' + str(options.pileupNoise)
 
     output_dir    = '/eos/experiment/fcc/hh/simulation/samples/'+options.version+'/physics/'+str(options.proc)+'/'+bfieldText+'/etaTo'+str(options.etaMax)+'/'+options.pt+'GeV/ana/JetClustering/'+algo+'/DeltaR_'+deltaR+'/maxEta'+etaCut+'/'
+
+    if options.beta!=0:
+        output_dir += 'beta_'+str(options.beta)+'/'
+    if options.alpha!=0.05:
+        output_dir += 'alpha_'+str(options.alpha)+'/'
+
+    if options.caloOnly and not options.topoCluster:
+        output_dir += "caloOnly/"
+
     max_events    = int(options.nev)
     queue         = options.queue
     collect       = options.collect
@@ -143,8 +183,8 @@ def main():
         # /eos/experiment/fcc/hh/simulation/samples/v03/physics/'+str(options.proc)+'/bFieldOn/etaTo1.5/100GeV/ana/JetClustering/anti-kt_coneCheck/out/
         print 'Find files in '+input_dir+'/out/'
         hadd_dir = input_dir+'/out/'
-        basename = str(collect)+'_'+str(options.pt)+'GeV_'+str(options.proc)
-        basename = os.path.basename(basename)
+        basename1 = str(collect)+'_'+str(options.pt)+'GeV_'+str(options.proc)
+        basename = os.path.basename(basename1)
         print basename
         outfile = hadd_dir + basename + '.root'
         hadd_files = hadd_dir + '*.root'
@@ -192,7 +232,8 @@ def main():
     else:
        print 'Output dir: "{0}" exists.'.format(output_dir)
 
-    cmd = "find {0} -type f -name '*.root'".format(options.input)
+    cmd = "find {0} -maxdepth 1 -type f -name 'out*.root'".format(options.input)
+    # print cmd
     process = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
     lst = process.communicate()[0]
     list_of_files = lst.splitlines()
@@ -200,64 +241,70 @@ def main():
     # just send one job per ntup file
     nfiles = len(list_of_files)
     njobs = min(nfiles, int(options.njobs))
+    args_file = open(os.path.join(condorPath+'/sub/', "arguments.txt"), "wb")
     
     for job in xrange(njobs):
-       
-       print "output dir  : ", output_dir
-       basename = output_dir + options.pt +'GeV_'+str(options.proc)+'_'+str(job)
-       basename = os.path.basename(basename)
-       print "output name : ",basename
-       currentDir = os.getcwd()
-       inputFile = list_of_files[job]
-              
-       outputFile = output_dir+'/'+basename+'.root'
+        
+      #  if job < 2765:
+      #      continue
+        inputFile = list_of_files[job]
+        last = os.path.basename(os.path.normpath(inputFile))
+        out = str(last.translate(None, digits))
+        run = str(last.translate(None, out))
+        print "use run number: ", run
 
-       subFile = condorPath+'/sub/'+basename+'.sub'
-       exFile = condorPath+'/sub/'+basename+'.sh'
-       
-       fsub = None
-       frun = None
-       try:
-           fsub = open(subFile, 'w')
-       except IOError as e:
-           print "I/O error({0}): {1}".format(e.errno, e.strerror)
-           time.sleep(10)
-           fsub = open(subFile, 'w')
-       print fsub
-       frun = None
+        print "output dir  : ", output_dir
+        basename = output_dir + options.pt +'GeV_'+str(options.proc)+'_'+str(options.version)+'_'+str(bfieldText)+'_'+str(algo)+'_deltaR_'+str(deltaR)+'_beta_'+str(options.beta)+'_alpha_'+str(options.alpha)+'_'+str(run)
+        basename = os.path.basename(basename)
+        print "output name : ",basename
+        currentDir = os.getcwd()
 
-       try:
-           frun = open(exFile, 'w')
-       except IOError as e:
-           print "I/O error({0}): {1}".format(e.errno, e.strerror)
-           time.sleep(10)
-           frun = open(exFile, 'w')
-       print frun
-       commands.getstatusoutput('chmod 777 %s'%(subFile))
-       
-       frun.write('#!/bin/bash\n')
-       frun.write(currentDir+'/submitJets.sh '+inputFile+' '+outputFile+' '+str(max_events)+' '+deltaR+' '+etaCut+' '+str(check)+' \n')
-       frun.close()
+        outputFile = output_dir+'/'+basename+'.root'
 
-       commands.getstatusoutput('chmod 777 %s'%(exFile))
-       commands.getstatusoutput('chmod 777 %s'%(condorPath+'/sub/'+basename+'.sh'))
+        exFile = condorPath+'/sub/'+basename+'.sh'
+
+        frun = None
+            
+        try:
+            frun = open(exFile, 'w')
+        except IOError as e:
+            print "I/O error({0}): {1}".format(e.errno, e.strerror)
+            time.sleep(10)
+            frun = open(exFile, 'w')
+        print frun
        
-       fsub.write('executable            = %s\n'%(exFile))
-       fsub.write('arguments             = $(ClusterID) $(ProcId)\n')
-       fsub.write('output                = %s/out/job.%s.$(ClusterID).$(ProcId).out\n'%(condorPath,basename))
-       fsub.write('log                   = %s/log/job.%s.$(ClusterID).$(ProcId).log\n'%(condorPath,basename))
-       fsub.write('error                 = %s/err/job.%s.$(ClusterID).$(ProcId).err\n'%(condorPath,basename))
-       fsub.write('RequestCpus = 4\n')
-       fsub.write('+JobFlavour = "nextweek"\n')
-       fsub.write('+AccountingGroup = "group_u_FCC.local_gen"\n')
-       fsub.write('queue 1\n')
-       fsub.close()
+        useCaloOnly = 0
+        if options.caloOnly:
+            useCaloOnly = 1
+
+        frun.write('#!/bin/bash\n')
+        frun.write(currentDir+'/submitJets.sh '+inputFile+' '+outputFile+' '+str(max_events)+' '+deltaR+' '+etaCut+' '+str(useCaloOnly)+' '+str(check)+' '+str(options.beta)+' '+str(options.alpha)+'\n')
+        frun.close()
+
+        args_file.write("%s,%s\n" % (condorPath+'/sub/'+basename+'.sh', job))
+
+        commands.getstatusoutput('chmod 777 %s'%(exFile))
+        commands.getstatusoutput('chmod 777 %s'%(condorPath+'/sub/'+basename+'.sh'))
        
-       cmd = "condor_submit %s\n"%(subFile)
-      
-       print cmd
-       batchid=-1
-       jobb,batchid=SubmitToCondor(cmd,10)       # submitting jobs
+    args_file.close()
+    
+    fsub = open(os.path.join(condorPath+'/sub/', "condor.sub"), "wb")
+    fsub.write('arguments             = $(ClusterID) $(ProcId)\n')
+    fsub.write('output                = %s/out/job.%s.$(ClusterID).$(ProcId).out\n'%(condorPath,basename))
+    fsub.write('log                   = %s/log/job.%s.$(ClusterID).$(ProcId).log\n'%(condorPath,basename))
+    fsub.write('error                 = %s/err/job.%s.$(ClusterID).$(ProcId).err\n'%(condorPath,basename))
+    fsub.write('RequestCpus = 4\n')
+    fsub.write('+JobFlavour = "nextweek"\n')
+    #fsub.write('+AccountingGroup = "group_u_ILC.u_zf"\n') 
+    fsub.write('+AccountingGroup = "group_u_FCC.local_gen"\n')
+    fsub.write('queue executable,ProcId from %s' % os.path.join(condorPath+'/sub', "arguments.txt"))
+    fsub.close()
+       
+    cmd = "condor_submit %s"%(condorPath+'/sub/condor.sub')
+    
+    print cmd
+    batchid=-1
+    jobb,batchid=SubmitToCondor(cmd,10)       # submitting jobs
        
 #       os.system(cmd)
 

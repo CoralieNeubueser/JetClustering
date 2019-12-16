@@ -12,8 +12,10 @@
 
 // ROOT includes
 #include <TFile.h>
+#include <TCanvas.h>
 #include <TTree.h>
 #include <TH1F.h>
+#include <TH1D.h>
 #include <TLorentzVector.h>
 
 // fastjet includes
@@ -47,6 +49,10 @@
 bool debug = false;
 //bool debug = true;
 
+// -- Test                                                                                                                                                   
+TH1D *h1 = new TH1D("h1","",100,0,10000);
+TH1D *h2 = new TH1D("h2","",100,0,10000);
+
 using namespace std;
 using namespace fastjet;
 using namespace fastjet::contrib;
@@ -64,10 +70,10 @@ struct selection {
 //----------------------------------------------------------------------
 
 template <class Collection>
-void produceJets(Collection& input_particles, JetCollection & jets, const float& r, const selection cuts, const bool doPuSubtraction = false, const bool doSubstructure = false);
+void produceJets(Collection& input_particles, JetCollection & jets, const float& r, const selection cuts, const bool doPuSubtraction = false, const bool doSubstructure = false, const double beta_sd=0.);
 
 template <class Sequence>
-void convertJets(Sequence seq, vector<PseudoJet> pseudojets, const float& r, JetCollection& jets, const bool doSubstructure = false);
+void convertJets(Sequence seq, vector<PseudoJet> pseudojets, const float& r, JetCollection& jets, const bool doSubstructure = false, const double beta_sd=0.);
 
 void matchJets(JetCollection& genjets, JetCollection& recojets, float dr);
 void matchTrackJets(JetCollection genjets, JetCollection recojets, JetCollection& outputCollection, ClusterCollection clusters, GenParticleCollection tracks, ClusterCollection& outputClusterCollection, float dr, float mDr, float ptThr);
@@ -89,19 +95,25 @@ int main(int argc, char* argv[]){
 
 
  // Check the number of parameters
-  if (argc < 8) {
+  if (argc < 9) {
     // Tell the user how to run the program
-    std::cerr << "Usage: " << argv[0] << " [input.root] " << " [output.root] " <<" [Nevts] [DeltaR] [maxEta] " << " [checkJetCone] " << std::endl;
+    std::cerr << "Usage: " << argv[0] << " [input.root] " << " [output.root] " <<" [Nevts] [DeltaR] [maxEta] " << " [checkJetCone] " << " [beta] "<< " [alpha] "<< std::endl;
     return 1;
   }
 
   double DeltaR = atof(argv[4]);
   double matchDeltaR = 0.3;
+  double EF_alpha = atof(argv[9]);
+
+  // if cone size smaller 0.3, cone size for matching is set to the total cone size
   if ( DeltaR < matchDeltaR)
     matchDeltaR = DeltaR;
+
   double maxEta = atof(argv[5]);
   int check = atof(argv[7]);
   double DeltaR_pfa_match = 0.1;
+  double beta_softDrop = atof(argv[8]);
+  std::cout << "Soft-drop parameter beta set to:  " << beta_softDrop << std::endl;
 
   bool doConeCheck = false;
   bool useSmearedParts = false;
@@ -124,10 +136,9 @@ int main(int argc, char* argv[]){
     useRechits = true;
     useClusters = true;
   }
-  // ---   Tree stuff declarations
-  
-  TFile *f = new TFile(argv[1]);
 
+  // ---   Tree stuff declarations
+  TFile *f = new TFile(argv[1]);
   TTree *t = (TTree*)f->Get("events");
   
   vector<Float_t> *rechit_pt        = 0;
@@ -324,6 +335,10 @@ int main(int argc, char* argv[]){
 	cluster_p4.SetPtEtaPhiE(cluster_pt->at(i), cluster_eta->at(i), cluster_phi->at(i), cluster_energy->at(i));
 	cluster_pos.SetXYZT(cluster_x->at(i), cluster_y->at(i), cluster_z->at(i), 0.0);
 	clusters.AddCluster(cluster_p4, cluster_pos);
+	//	if (debug && i<10){
+	//  std::cout << "pt cluster: " << cluster_pt->at(i) << "\n";
+	//}
+	h1->Fill(cluster_pt->at(i));
       }
       //      if(debug) 
       cout<<"cluster size: "<<clusters.size()<<endl;
@@ -350,38 +365,38 @@ int main(int argc, char* argv[]){
     cuts.absetamin = 0.0;
     cuts.absetamax = maxEta;
       
-    produceJets(clean_genparts, genjets, DeltaR, cuts, false, doSubstructure);
+    produceJets(clean_genparts, genjets, DeltaR, cuts, false,false, beta_softDrop);
     cout<<"Number of gen jets: " << genjets.size() <<endl;
 
     if ( useRechits ){
       cout<<"Rechits used for jet production. "<<endl;
-      produceJets(rechits, recojets, DeltaR, cuts, doPuSubtraction, doSubstructure);
+      produceJets(rechits, recojets, DeltaR, cuts, doPuSubtraction, doSubstructure, beta_softDrop);
       if (useMulti){
-	produceJets(rechits, recojets_02, 0.2, cuts, doPuSubtraction, doSubstructure);
-	produceJets(rechits, recojets_04, 0.4, cuts, doPuSubtraction, doSubstructure);
-	produceJets(rechits, recojets_08, 0.8, cuts, doPuSubtraction, doSubstructure);
+	produceJets(rechits, recojets_02, 0.2, cuts, doPuSubtraction, doSubstructure, beta_softDrop);
+	produceJets(rechits, recojets_04, 0.4, cuts, doPuSubtraction, doSubstructure, beta_softDrop);
+	produceJets(rechits, recojets_08, 0.8, cuts, doPuSubtraction, doSubstructure, beta_softDrop);
 
 	setMultiSD(recojets, recojets_02, recojets_04, recojets_08);
       }
     } 
     if ( useSmearedParts ){
       cout<<"Tracks used for jet production. "<<endl;
-      produceJets(clean_smearedparts, trackjets, DeltaR, cuts, doPuSubtraction, doSubstructure);
+      produceJets(clean_smearedparts, trackjets, DeltaR, cuts, doPuSubtraction, doSubstructure, beta_softDrop);
       if (useMulti){
-        produceJets(clean_smearedparts, recojets_02, 0.2, cuts, doPuSubtraction, doSubstructure);
-        produceJets(clean_smearedparts, recojets_04, 0.4, cuts, doPuSubtraction, doSubstructure);
-        produceJets(clean_smearedparts, recojets_08, 0.8, cuts, doPuSubtraction, doSubstructure);
+        produceJets(clean_smearedparts, recojets_02, 0.2, cuts, doPuSubtraction, doSubstructure, beta_softDrop);
+        produceJets(clean_smearedparts, recojets_04, 0.4, cuts, doPuSubtraction, doSubstructure, beta_softDrop);
+        produceJets(clean_smearedparts, recojets_08, 0.8, cuts, doPuSubtraction, doSubstructure, beta_softDrop);
 
         setMultiSD(trackjets, recojets_02, recojets_04, recojets_08);
       }
     } 
     if ( useClusters ){
       cout<<"Clusters used for jet production. "<<endl;
-      produceJets(clusters, recojets, DeltaR, cuts, doPuSubtraction, doSubstructure);
+      produceJets(clusters, recojets, DeltaR, cuts, doPuSubtraction, doSubstructure, beta_softDrop);
       if (useMulti){
-        produceJets(clusters, recojets_02, 0.2, cuts, doPuSubtraction, doSubstructure);
-        produceJets(clusters, recojets_04, 0.4, cuts, doPuSubtraction, doSubstructure);
-        produceJets(clusters, recojets_08, 0.8, cuts, doPuSubtraction, doSubstructure);
+        produceJets(clusters, recojets_02, 0.2, cuts, doPuSubtraction, doSubstructure, beta_softDrop);
+        produceJets(clusters, recojets_04, 0.4, cuts, doPuSubtraction, doSubstructure, beta_softDrop);
+        produceJets(clusters, recojets_08, 0.8, cuts, doPuSubtraction, doSubstructure, beta_softDrop);
 
         setMultiSD(recojets, recojets_02, recojets_04, recojets_08);
       }
@@ -423,19 +438,19 @@ int main(int argc, char* argv[]){
       if ( useRechits ){
 	matchJets(genjets, recojets, matchDeltaR);
 	cout<<"Rechits summed around jet axis. "<<endl;
-	sumEnergiesAroundJet(recojets, rechits, genparts, 0.05, DeltaR);
+	sumEnergiesAroundJet(recojets, rechits, genparts, EF_alpha, DeltaR);
 	addHitsToJet(recojets,rechits, 0., DeltaR);
       }
       else{
 	if ( useSmearedParts && !useClusters ){
 	  matchJets(genjets, trackjets, matchDeltaR);
 	  cout<<"Smeared particles summed around jet axis. "<<endl;
-	  sumTrackEnergiesAroundJet(trackjets, clean_smearedparts, genparts, 0.05, DeltaR);
+	  sumTrackEnergiesAroundJet(trackjets, clean_smearedparts, genparts, EF_alpha, DeltaR);
 	}
 	if ( useClusters ){
 	  matchJets(genjets, recojets, matchDeltaR);
           cout<<"Cluster summed around jet axis. "<<endl;
-	  sumClusterEnergiesAroundJet(recojets, clusters, genparts, 0.05, DeltaR);
+	  sumClusterEnergiesAroundJet(recojets, clusters, genparts, EF_alpha, DeltaR);
 	}
 	if (useSmearedParts && useClusters) {
 	  // match reco and trackjets
@@ -471,6 +486,19 @@ int main(int argc, char* argv[]){
   jet_angular_plots.write();
   
   outfile.Close();
+
+  if (debug){
+    std::cout << "cluster inputs: " << h1->GetEntries() << "\n";
+    std::cout << "jet inputs:     " << h2->GetEntries() << "\n";
+  }
+  TCanvas can("can","can");
+  can.SetLogy();
+  h1->SetLineWidth(2);
+  h1->SetLineColor(1);
+  h1->Draw();
+  h2->SetLineColor(2);
+  h2->Draw("same");
+  can.Print("test_pt_input.pdf");
 
   return 0;
 }
@@ -524,18 +552,19 @@ void computePuOffset(RecHitCollection& rechits) {
 
 //------------------------------------------------------------------------------------------------------
 template <class Collection>
-void produceJets(Collection& constituents, JetCollection& jets, const float& r, const selection cuts, const bool doPuSubtraction = false, const bool doSubstructure = false) {
-      
+void produceJets(Collection& constituents, JetCollection& jets, const float& r, const selection cuts, const bool doPuSubtraction = false, const bool doSubstructure = false, const double beta_sd) {
    // first convert constituents into fastjet pseudo-jets
    vector <PseudoJet> input_particles;
-   //   std::cout << "pseudo jets: " <<constituents.size()<< std::endl;
    for (unsigned i = 0; i < constituents.size(); i++) {
-     //Constituent pj = constituents.at(i);
-     //     std::cout << "rechit : px,py,pz,energy: " << constituents.at(i)->px()<< ", " <<constituents.at(i)->py()<<", "<< constituents.at(i)->pz()<<", "<<constituents.at(i)->energy() << std::endl;
-     double pz = constituents.at(i)->pz();
-     if (std::isnan(pz))
-       pz = 0.;
-     input_particles.push_back( PseudoJet( constituents.at(i)->px(), constituents.at(i)->py(), pz, constituents.at(i)->energy()));
+     
+     input_particles.push_back( PseudoJet( constituents.at(i)->px(), constituents.at(i)->py(), constituents.at(i)->pz(), constituents.at(i)->energy()));
+     if (doSubstructure)
+       h2->Fill(PseudoJet( constituents.at(i)->px(), constituents.at(i)->py(), constituents.at(i)->pz(), constituents.at(i)->energy() ).perp());
+
+     if (debug && i<10){
+       std::cout << "mass of pseudojet : " << PseudoJet( constituents.at(i)->px(), constituents.at(i)->py(), constituents.at(i)->pz(), constituents.at(i)->energy() ).m() << "\n"; 
+       std::cout << "pt of pseudojet : " << PseudoJet( constituents.at(i)->px(), constituents.at(i)->py(), constituents.at(i)->pz(), constituents.at(i)->energy() ).perp() << " \n";
+     }
    }
    
    // Initial clustering with anti-kt algorithm
@@ -573,7 +602,7 @@ void produceJets(Collection& constituents, JetCollection& jets, const float& r, 
        akjets = select_jets(sorted_by_pt(akjets));
        
        // eventually apply substructure and store in custom dataformat
-       convertJets(clust_seq, akjets, r, jets, doSubstructure);
+       convertJets(clust_seq, akjets, r, jets, doSubstructure, beta_sd);
    }
    else {
      
@@ -584,14 +613,15 @@ void produceJets(Collection& constituents, JetCollection& jets, const float& r, 
      akjets = select_jets(akjets);
      
      // eventually apply substructure and store in custom dataformat
-     convertJets(clust_seq, akjets, r, jets, doSubstructure);
+     convertJets(clust_seq, akjets, r, jets, doSubstructure, beta_sd);
    }
-   
+   input_particles.clear();
+   akjets.clear();
 }
 
 //------------------------------------------------------------------------------------------------------
 template <class Sequence>
-void convertJets(Sequence seq, vector<PseudoJet> pseudojets, const float& r, JetCollection& jets, const bool doSubstructure = false){
+void convertJets(Sequence seq, vector<PseudoJet> pseudojets, const float& r, JetCollection& jets, const bool doSubstructure = false, const double beta_sd){
 
    TLorentzVector p4;
    for (unsigned j = 0; j < pseudojets.size() ; j++) { 
@@ -622,7 +652,7 @@ void convertJets(Sequence seq, vector<PseudoJet> pseudojets, const float& r, Jet
            jet.setTau32(nSub32_beta1(this_jet));
 
            // soft drop
-           beta = 0.0;
+           beta = beta_sd;
            double zcut = 0.1;
            SoftDrop softDrop(beta,zcut);
            PseudoJet softdrop_jet = softDrop(this_jet);
@@ -771,9 +801,9 @@ void matchTrackJets(JetCollection genjets, JetCollection recojets, JetCollection
       int counter=0;
       for (auto t : matchMap){
 	GenParticle* charged = t.first;
-	if (debug)
+	if (debug){
 	  std::cout << "Track with pt:       "<< charged->p4().Pt() << std::endl;
-
+	}
 	if ( charged->p4().Pt() < ptThr ){
 	  //	  new_p4+=charged->p4();
 	  x += charged->px()*charged->energy();
@@ -786,12 +816,14 @@ void matchTrackJets(JetCollection genjets, JetCollection recojets, JetCollection
 	  p4.SetPtEtaPhiE(charged->pt(), charged->eta(), charged->phi(), charged->energy());
 	  TLorentzVector pos(charged->px(), charged->py(), charged->pz(), charged->energy());
 	  outputClusterCollection.Add(new Cluster(p4, pos));
-	  if (debug)
+	  if (debug){
 	    std::cout << "gets added to jet.       " << std::endl;
+	  }
 	}
 	else{
-	  if (debug)
+	  if (debug){
 	    std::cout << "gets the connected " << t.second.size() << " clusters added to jet.  " << std::endl;
+	  }
 	  for (auto cl : t.second){
 	    //  new_p4+=cl->p4();
 	    x += cl->px()*cl->energy();
@@ -846,8 +878,9 @@ void matchTrackJets(JetCollection genjets, JetCollection recojets, JetCollection
 	p4.SetPtEtaPhiE(left.first->pt(), left.first->eta(), left.first->phi(), left.first->energy());
 	TLorentzVector pos(left.first->px(), left.first->py(), left.first->pz(), left.first->energy());
 	outputClusterCollection.Add(new Cluster(p4, pos));
-	if(debug)
+	if(debug){
 	  std::cout << "track pt: " << left.first->p4().Pt() << std::endl;
+	}
       }
       
       TVector3 vec;
@@ -1003,13 +1036,13 @@ void sumEnergiesAroundJet(JetCollection& recojets, RecHitCollection& inputCollec
     //rj->setHits(vecHits);
 
     double total = energies[0] + energies[1] + energies[2] + energies[3] + energies[4];
-    if (debug){
-      std::cout << "Test ring energy n=1: " << energies[0] << endl;
-      std::cout << "Test ring energy n=2: " << energies[1] << endl;
-      std::cout << "Test ring energy n=3: " << energies[2] << endl;
-      std::cout << "Test ring energy n=4: " << energies[3] << endl;
-      std::cout << "Test ring energy n=5: " << energies[4] << endl;
-    }
+    //if (debug){
+    //  std::cout << "Test ring energy n=1: " << energies[0] << endl;
+    //  std::cout << "Test ring energy n=2: " << energies[1] << endl;
+    //  std::cout << "Test ring energy n=3: " << energies[2] << endl;
+    //  std::cout << "Test ring energy n=4: " << energies[3] << endl;
+    //  std::cout << "Test ring energy n=5: " << energies[4] << endl;
+    //}
     rj->setPt_005(total);
     rj->setEf1(energies[0]/total);
     rj->setEf2(energies[1]/total);

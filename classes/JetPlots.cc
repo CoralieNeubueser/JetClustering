@@ -54,10 +54,10 @@ void JetPlots::fill(JetCollection& coll){
            TH1F histo = it->second;
            Jet *genjet = jet.ref();
            if(genjet){
-               if(genjet->pt() > ptmin && genjet->pt() < ptmax){
-                   (it->second).Fill(jet.pt()/genjet->pt());
-               }
-               
+	     if(genjet->pt() > ptmin && genjet->pt() < ptmax){
+	       (it->second).Fill(jet.pt()/genjet->pt());
+	     }
+             
            }
            
        }

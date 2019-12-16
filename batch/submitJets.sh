@@ -13,9 +13,12 @@ OUTPUT_FILE=${2}
 NEVENTS=${3}
 DELTAR=${4}
 ETACUT=${5}
-CHECK=${6}
+CHECK1=${6}
+CHECK2=${7}
+BETA=${8}
+ALPHA=${9}
 
 cp /afs/cern.ch/user/c/cneubuse/FCC/JetClustering/analyze .
 
-./analyze ${INPUT_FILE} ${OUTPUT_FILE} ${NEVENTS} ${DELTAR} ${ETACUT} ${CHECK}
+./analyze ${INPUT_FILE} ${OUTPUT_FILE} ${NEVENTS} ${DELTAR} ${ETACUT} ${CHECK1} ${CHECK2} ${BETA} ${ALPHA}
  
