@@ -37,7 +37,12 @@ example:
 
 The script ```batch/submitJetClusteringEos.py``` allows to run this script on condor queues.
 A new output directory is automatically build from the input string, following the logic of FCCSimJobs version v04 by default.
-Specify algorithm: "anti-kt" (if calo cells have been used in full granularity), "anti-kt_resegmentedHCal" (if input default calo cell granularity) or "anti-kt_split" (if cluster were split) and if input are cluster add: -t
+
+Specify algorithm: "anti-kt" (if calo cells have been used in full granularity), "anti-kt_resegmentedHCal" (if input default calo cell granularity) or "anti-kt_split" (if cluster were split) and if input are cluster add: -t or --topoCluster
+
+Or, instead of cluster, you can run on tracks (smeared generated charged particles) by adding --track. Use here the same input files in /v04/ as for the cluster (see e.g. below).
+
+If neither cluster nor tracks are specified as input, the algorithm assumes calorimeter cells as input.
 
 example:
 ```
